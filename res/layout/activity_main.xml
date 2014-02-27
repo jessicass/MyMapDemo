@@ -11,16 +11,26 @@
 
     <ImageButton
         android:id="@+id/locate_request"
-        android:layout_width="wrap_content"
+        android:layout_width="45dp"
         android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
-        android:layout_alignParentTop="true"
+        android:layout_marginBottom="10dp"
         android:layout_marginRight="10dp"
-        android:layout_marginTop="10dp"
         android:background="@drawable/map_btn_bg_selector"
-        android:gravity="center"
         android:contentDescription="@string/locate"
+        android:gravity="center"
         android:onClick="requestLocation"
         android:src="@drawable/map_btn_locate" />
+
+    <com.example.mymapdemo.ZoomControlView
+        android:id="@+id/zoom_controller"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@id/locate_request"
+        android:layout_alignParentRight="true"
+        android:layout_alignWithParentIfMissing="true"
+        android:layout_marginBottom="10dp"
+        android:layout_marginRight="10dp" />
 
 </RelativeLayout>

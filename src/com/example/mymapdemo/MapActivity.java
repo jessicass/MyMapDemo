@@ -3,6 +3,7 @@ package com.example.mymapdemo;
 import java.util.List;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
@@ -19,7 +20,9 @@ import com.baidu.mapapi.BMapManager;
 import com.baidu.mapapi.MKGeneralListener;
 import com.baidu.mapapi.map.LocationData;
 import com.baidu.mapapi.map.MKEvent;
+import com.baidu.mapapi.map.MKMapViewListener;
 import com.baidu.mapapi.map.MapController;
+import com.baidu.mapapi.map.MapPoi;
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.map.MyLocationOverlay;
 import com.baidu.mapapi.map.OverlayItem;
@@ -55,17 +58,51 @@ public class MapActivity extends Activity {
 		setContentView(R.layout.activity_main);
 
 		mMapView = (MyMapView) findViewById(R.id.bmapView);
-		mMapView.setBuiltInZoomControls(true); // 设置启用内置的缩放控件
+		// 隐藏自带的地图缩放控件
+		mMapView.setBuiltInZoomControls(false);
+
+		final ZoomControlView mZoomController = (ZoomControlView) findViewById(R.id.zoom_controller);
+		mZoomController.setMapView(mMapView);
+
+		mMapView.regMapViewListener(mBMapMan, new MKMapViewListener() {
+			private int lastLevel = -1;
+
+			@Override
+			public void onClickMapPoi(MapPoi arg0) {
+			}
+
+			@Override
+			public void onGetCurrentMap(Bitmap arg0) {
+			}
+
+			@Override
+			public void onMapAnimationFinish() {
+				zoomChange();
+			}
+
+			@Override
+			public void onMapLoadFinish() {
+			}
+
+			@Override
+			public void onMapMoveFinish() {
+				zoomChange();
+			}
+
+			private void zoomChange() {
+				int zoomLevel = Math.round(mMapView.getZoomLevel());
+				if (lastLevel < 0 || lastLevel != zoomLevel) {
+					mZoomController.refreshZoomBtnStatus(zoomLevel);
+					lastLevel = zoomLevel;
+				}
+			}
+		});
+		mZoomController.refreshZoomBtnStatus(18);
 
 		// 得到mMapView的控制权,可以用它控制和驱动平移和缩放
 		MapController mMapController = mMapView.getController();
 
-		// 用给定的经纬度构造一个GeoPoint，单位是微度 (度 * 1E6)
-		/* 第一个是参数表示纬度，第二个是经度 */
-		GeoPoint centerPoint = new GeoPoint((int) (30.5136 * 1E6),
-				(int) (114.4018 * 1E6));
-
-		mMapController.setCenter(centerPoint); // 设置地图中心点
+		// mMapController.setCenter(centerPoint); // 设置地图中心点
 		mMapController.setZoom(16); // 设置地图zoom级别，这个值的取值范围是[3,18]。
 
 		// 标注三个点
@@ -82,7 +119,7 @@ public class MapActivity extends Activity {
 			showToast("正在定位");
 			mLocClient.requestLocation();
 		} else {
-			Log.d("log", "locClient is null or not started");
+			Log.d("request location", "locClient is null or not started");
 		}
 	}
 
@@ -124,6 +161,7 @@ public class MapActivity extends Activity {
 
 	/** 设置三个标点 */
 	private void setMapMarker() {
+		// 用给定的经纬度构造一个GeoPoint，单位是微度 (度 * 1E6) 第一个是参数表示纬度，第二个是经度
 		GeoPoint point1 = new GeoPoint((int) (30.5136 * 1E6),
 				(int) (114.4018 * 1E6));
 		GeoPoint point2 = new GeoPoint((int) (30.5138 * 1E6),
@@ -230,7 +268,7 @@ public class MapActivity extends Activity {
 			mLocData.latitude = location.getLatitude();
 			mLocData.longitude = location.getLongitude();
 			// 如果不显示定位精度圈，将accuracy赋值为0即可
-			mLocData.accuracy = location.getRadius();
+			// mLocData.accuracy = location.getRadius();
 			mLocData.direction = location.getDerect();
 
 			myLocOverlay.setData(mLocData); // 将定位数据设置到定位图层里
