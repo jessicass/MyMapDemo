@@ -43,6 +43,8 @@ public class MapActivity extends Activity {
 	public LocationClient mLocClient; // 定位SDK核心类
 	private BDLocation myLocation; // 用户当前位置
 
+	private ZoomControlView mZoomController; // 地图缩放控件控制器
+
 	private boolean isRequest = false; // 是否手动触发请求定位
 	private boolean isFirstLoc = true; // 是否首次定位
 	private Toast mToast; // 确保只有一个Toast显示
@@ -60,50 +62,13 @@ public class MapActivity extends Activity {
 		mMapView = (MyMapView) findViewById(R.id.bmapView);
 		// 隐藏自带的地图缩放控件
 		mMapView.setBuiltInZoomControls(false);
-
-		final ZoomControlView mZoomController = (ZoomControlView) findViewById(R.id.zoom_controller);
-		mZoomController.setMapView(mMapView);
-
-		mMapView.regMapViewListener(mBMapMan, new MKMapViewListener() {
-			private int lastLevel = -1;
-
-			@Override
-			public void onClickMapPoi(MapPoi arg0) {
-			}
-
-			@Override
-			public void onGetCurrentMap(Bitmap arg0) {
-			}
-
-			@Override
-			public void onMapAnimationFinish() {
-				zoomChange();
-			}
-
-			@Override
-			public void onMapLoadFinish() {
-			}
-
-			@Override
-			public void onMapMoveFinish() {
-				zoomChange();
-			}
-
-			private void zoomChange() {
-				int zoomLevel = Math.round(mMapView.getZoomLevel());
-				if (lastLevel < 0 || lastLevel != zoomLevel) {
-					mZoomController.refreshZoomBtnStatus(zoomLevel);
-					lastLevel = zoomLevel;
-				}
-			}
-		});
-		mZoomController.refreshZoomBtnStatus(18);
+		// 初始化地图缩放控件
+		initZoomController();
 
 		// 得到mMapView的控制权,可以用它控制和驱动平移和缩放
 		MapController mMapController = mMapView.getController();
-
 		// mMapController.setCenter(centerPoint); // 设置地图中心点
-		mMapController.setZoom(16); // 设置地图zoom级别，这个值的取值范围是[3,18]。
+		mMapController.setZoom(18); // 设置地图zoom级别，这个值的取值范围是[3,18]。
 
 		// 标注三个点
 		setMapMarker();
@@ -170,8 +135,7 @@ public class MapActivity extends Activity {
 				(int) (114.4004 * 1E6));
 
 		// 获取用于在地图上标注一个地理坐标点的图标
-		Drawable drawable = this.getResources().getDrawable(
-				R.drawable.map_balloon);
+		Drawable drawable = getResources().getDrawable(R.drawable.map_balloon);
 
 		// 用OverlayItem准备Overlay数据
 		OverlayItem overlayItem1 = new OverlayItem(point1, "point1", "point1");
@@ -186,11 +150,9 @@ public class MapActivity extends Activity {
 		// 创建MyItemizedOverlay
 		MyItemizedOverlay myItemizedOverlay = new MyItemizedOverlay(drawable,
 				mMapView, this);
-
 		// 将IteminizedOverlay添加到MapView中
 		mMapView.getOverlays().clear();
 		mMapView.getOverlays().add(myItemizedOverlay);
-
 		// 添加OverlayItem
 		myItemizedOverlay.addItem(overlayItemsList);
 
@@ -232,6 +194,53 @@ public class MapActivity extends Activity {
 		// option.setPoiDistance(1000); //poi查询距离
 		// option.setPoiExtraInfo(true); //是否需要POI的电话和地址等详细信息
 		return option;
+	}
+
+	/** 初始化地图缩放控件 */
+	private void initZoomController() {
+		mZoomController = (ZoomControlView) findViewById(R.id.zoom_controller);
+		mZoomController.setMapView(mMapView);
+		// 注册地图显示事件监听器
+		mMapView.regMapViewListener(mBMapMan, new MyMKMapViewListener());
+		mZoomController.refreshZoomBtnStatus(18);
+	}
+
+	/** 地图显示事件监听器，监听地图显示事件，用户需要实现该接口以处理相应事件 */
+	class MyMKMapViewListener implements MKMapViewListener {
+		private int lastLevel = -1;
+
+		@Override
+		public void onClickMapPoi(MapPoi mapPoi) {
+		}
+
+		@Override
+		public void onGetCurrentMap(Bitmap bitmap) {
+		}
+
+		/** 动画结束时会回调此消息，在此方法里面更新缩放按钮的状态 */
+		@Override
+		public void onMapAnimationFinish() {
+			zoomChange();
+		}
+
+		@Override
+		public void onMapLoadFinish() {
+		}
+
+		/** 移动结束时会回调此消息，在此方法里面更新缩放按钮的状态 */
+		@Override
+		public void onMapMoveFinish() {
+			zoomChange();
+		}
+
+		/** 更新缩放按钮的状态 */
+		private void zoomChange() {
+			int zoomLevel = Math.round(mMapView.getZoomLevel());
+			if (lastLevel < 0 || lastLevel != zoomLevel) {
+				mZoomController.refreshZoomBtnStatus(zoomLevel);
+				lastLevel = zoomLevel;
+			}
+		}
 	}
 
 	/** 常用事件监听，用来处理通常的网络错误，授权验证错误等 */
@@ -288,7 +297,6 @@ public class MapActivity extends Activity {
 		/** 接收异步返回的POI查询结果，参数是BDLocation类型参数 */
 		@Override
 		public void onReceivePoi(BDLocation poiLocation) {
-
 		}
 
 	}
@@ -296,8 +304,8 @@ public class MapActivity extends Activity {
 	/** 继承MyLocationOverlay重写dispatchTap方法 */
 	class MyOwnLocationOverlay extends MyLocationOverlay {
 
-		public MyOwnLocationOverlay(MapView arg0) {
-			super(arg0);
+		public MyOwnLocationOverlay(MapView mapView) {
+			super(mapView);
 		}
 
 		/** 在“我的位置”坐标上处理点击事件 */
@@ -311,11 +319,10 @@ public class MapActivity extends Activity {
 
 	/** 显示弹出窗口图层PopupOverlay */
 	private void showPopupOverlay(BDLocation location) {
-		View view = LayoutInflater.from(MapActivity.this).inflate(
+		View view = LayoutInflater.from(this).inflate(
 				R.layout.map_popwindow_view, null);
 		TextView text_title = (TextView) view.findViewById(R.id.marker_title);
 		TextView text_text = (TextView) view.findViewById(R.id.marker_text);
-
 		text_title.setText("[我的位置]");
 		text_text.setText(location.getAddrStr());
 
