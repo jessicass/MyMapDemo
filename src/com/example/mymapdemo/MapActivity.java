@@ -17,9 +17,7 @@ import com.baidu.location.BDLocationListener;
 import com.baidu.location.LocationClient;
 import com.baidu.location.LocationClientOption;
 import com.baidu.mapapi.BMapManager;
-import com.baidu.mapapi.MKGeneralListener;
 import com.baidu.mapapi.map.LocationData;
-import com.baidu.mapapi.map.MKEvent;
 import com.baidu.mapapi.map.MKMapViewListener;
 import com.baidu.mapapi.map.MapController;
 import com.baidu.mapapi.map.MapPoi;
@@ -31,9 +29,6 @@ import com.google.common.collect.Lists;
 
 public class MapActivity extends Activity {
 
-	public static final String BAIDU_MAP_KEY = "kFvtrKqSFkG9mTbtGBpuLbbK";
-
-	private BMapManager mBMapMan = null; // 地图引擎管理类
 	// 使用继承MapView的MyMapView目的是重写touch事件实现泡泡处理
 	// 如果不处理touch事件，则无需继承，直接使用MapView即可
 	private MyMapView mMapView = null; // 显示地图的View
@@ -53,9 +48,18 @@ public class MapActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		// 使用地图sdk前需要先初始化BMapManager，必须在setContentView方法之前
-		mBMapMan = new BMapManager(getApplication());
-		mBMapMan.init(BAIDU_MAP_KEY, new MyMKGeneralListener());
+		/**
+		 * 使用地图sdk前需要先初始化BMapManager，必须在setContentView方法之前。
+		 * BMapManager是全局的，可为多个MapView共用，它需要在地图模块创建之前创建，
+		 * 并在地图地图模块销毁后销毁，只要还有地图模块在使用，BMapManager就不应该销毁
+		 */
+		UserApplication app = (UserApplication) this.getApplication();
+		if (app.mBMapManager == null) {
+			app.mBMapManager = new BMapManager(getApplicationContext());
+			// 如果BMapManager没有初始化则初始化BMapManager
+			app.mBMapManager.init(UserApplication.BAIDU_MAP_KEY,
+					new UserApplication.MyGeneralListener());
+		}
 
 		setContentView(R.layout.activity_main);
 
@@ -89,39 +93,38 @@ public class MapActivity extends Activity {
 	}
 
 	@Override
+	protected void onResume() {
+		// MapView的生命周期与Activity同步，当activity恢复时需调用MapView.onResume()
+		mMapView.onResume();
+		super.onResume();
+	}
+
+	@Override
+	protected void onPause() {
+		// MapView的生命周期与Activity同步，当activity挂起时需调用MapView.onPause()
+		mMapView.onPause();
+		super.onPause();
+	}
+
+	@Override
 	protected void onDestroy() {
 		// MapView的生命周期与Activity同步，当activity销毁时需调用MapView.destroy()
 		mMapView.destroy();
-
-		// 退出应用调用BMapManager的destroy()方法
-		if (mBMapMan != null) {
-			mBMapMan.destroy();
-			mBMapMan = null;
-		}
 
 		// 退出时销毁定位
 		if (mLocClient != null) {
 			mLocClient.stop();
 		}
+
+		// 建议在APP整体退出之前调用MapApi的destroy()函数，不要在每个activity的OnDestroy中调用，
+		// 避免MapApi重复创建初始化，提高效率
+		UserApplication app = (UserApplication) this.getApplication();
+		if (app.mBMapManager != null) {
+			app.mBMapManager.destroy();
+			app.mBMapManager = null;
+		}
+
 		super.onDestroy();
-	}
-
-	@Override
-	protected void onPause() {
-		mMapView.onPause();
-		if (mBMapMan != null) {
-			mBMapMan.stop();
-		}
-		super.onPause();
-	}
-
-	@Override
-	protected void onResume() {
-		mMapView.onResume();
-		if (mBMapMan != null) {
-			mBMapMan.start();
-		}
-		super.onResume();
 	}
 
 	/** 设置三个标点 */
@@ -201,7 +204,8 @@ public class MapActivity extends Activity {
 		mZoomController = (ZoomControlView) findViewById(R.id.zoom_controller);
 		mZoomController.setMapView(mMapView);
 		// 注册地图显示事件监听器
-		mMapView.regMapViewListener(mBMapMan, new MyMKMapViewListener());
+		mMapView.regMapViewListener(UserApplication.getInstance().mBMapManager,
+				new MyMKMapViewListener());
 		mZoomController.refreshZoomBtnStatus(18);
 	}
 
@@ -241,27 +245,6 @@ public class MapActivity extends Activity {
 				lastLevel = zoomLevel;
 			}
 		}
-	}
-
-	/** 常用事件监听，用来处理通常的网络错误，授权验证错误等 */
-	class MyMKGeneralListener implements MKGeneralListener {
-
-		/** 一些网络状态的错误处理回调函数 */
-		@Override
-		public void onGetNetworkState(int iError) {
-			if (iError == MKEvent.ERROR_NETWORK_CONNECT) {
-				showToast("网络出错！");
-			}
-		}
-
-		/** 授权错误的时候调用的回调函数 */
-		@Override
-		public void onGetPermissionState(int iError) {
-			if (iError == MKEvent.ERROR_PERMISSION_DENIED) {
-				showToast("请在输入正确的授权Key！");
-			}
-		}
-
 	}
 
 	/** 用来定位的接口，需要实现两个方法 */

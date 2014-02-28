@@ -5,15 +5,15 @@
 
     <ImageButton
         android:id="@+id/zoominBtn"
-        android:layout_width="45dp"
-        android:layout_height="50dp"
+        android:layout_width="40dp"
+        android:layout_height="45dp"
         android:background="@drawable/zoomin_btn"
         android:contentDescription="放大" />
 
     <ImageButton
         android:id="@+id/zoomoutBtn"
-        android:layout_width="45dp"
-        android:layout_height="50dp"
+        android:layout_width="40dp"
+        android:layout_height="45dp"
         android:layout_below="@id/zoominBtn"
         android:background="@drawable/zoomout_btn"
         android:contentDescription="缩小" />
